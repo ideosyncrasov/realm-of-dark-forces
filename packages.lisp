@@ -1,0 +1,3 @@
+(defpackage :rdf
+  (:use :cl))
+
