@@ -1,3 +1,3 @@
 (defpackage :rdf
-  (:use :cl))
-
+  (:use :cl)
+  (:export "MAIN"))

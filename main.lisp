@@ -1,6 +1,6 @@
 (in-package :rdf)
 
-(defvar *pkg-dir* (asdf:system-source-directory :realm-of-dark-forces))
+(defvar *asset-dir* (merge-pathnames "assets/" (asdf:system-source-directory :realm-of-dark-forces)))
 (defvar *canvas-width* 640)
 (defvar *canvas-height* 480)
 (defvar *last-draw* nil)
@@ -16,22 +16,23 @@
 (defvar *cursor-pos* (gamekit:vec2 0 0))
 (defvar *character*)
 (defvar *head-grabbed-p* nil)
-(defvar *tile-map-file* (merge-pathnames "tileset_16x16_interior/map_deco0.csv" *pkg-dir*))
-(defvar *character-tile-set-file* (merge-pathnames "character.png" *pkg-dir*))
+(defvar *tile-set-file* (merge-pathnames "tileset_16x16_interior.png" *asset-dir*))
+(defvar *tile-map-file* (merge-pathnames "map_deco0.csv" *asset-dir*))
+(defvar *character-tile-set-file* (merge-pathnames "character.png" *asset-dir*))
 (defvar *default-tile-set*)
 (defvar *default-tile-map*)
 (defvar *character-tile-set*)
 
 (defclass main (gamekit:gamekit-system) ()
   (:default-initargs
-    :resource-path "common-lisp/realm of dark forces/"
+    :resource-path *asset-dir*
     :viewport-width *canvas-width*
     :viewport-height *canvas-height*
     :viewport-title "In the Realm of Dark Forces"))
 
 (defmethod gamekit:initialize-resources ((app main))
   (gamekit:import-image :snake-head "snake-head.png")
-  (gamekit:import-image :tile-set "tileset_16x16_interior.png")
+  (gamekit:import-image :tile-set *tile-set-file*)
   (gamekit:import-image :character-tile-set *character-tile-set-file*)
   (gamekit:import-sound :snake-grab "snake-grab.ogg"))
 
@@ -185,4 +186,5 @@
                                       (gamekit:vec2 32 32))))
       (gamekit:draw-image head-img-pos :snake-head))))
 
-(gamekit:start 'main)
+(defun main ()
+  (gamekit:start 'main))

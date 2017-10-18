@@ -1,0 +1,11 @@
+Name: "Interior Tileset 16x16"
+Link: https://opengameart.org/content/interior-tileset-16x16
+Author: Bonsaiheldin | http://bonsaiheld.org
+
+
+License: CC-BY-SA 3.0
+
+Name: "Zelda-like tilesets and sprites"
+Link: https://opengameart.org/content/zelda-like-tilesets-and-sprites
+Author: ArMM1998
+License: Public Domain/CC0
