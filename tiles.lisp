@@ -41,7 +41,11 @@
      :reader lly)))
 
 (defclass tile-map-layer ()
-  ((num-rows
+  ((name
+     :initarg :name
+     :reader name
+     :type string)
+   (num-rows
      :initarg :num-rows
      :reader num-rows)
    (num-cols
@@ -55,6 +59,12 @@
   ((tiles ;array mapping tilenums to tiles (of possibly multiple) tilesets
      :initarg :tiles
      :reader tiles)
+   (tile-width
+     :initarg :tile-width
+     :reader tile-width)
+   (tile-height
+     :initarg :tile-height
+     :reader tile-height)
    (num-rows
      :initarg :num-rows
      :reader num-rows)
@@ -64,30 +74,6 @@
    (layers ;array of layers, ordered from front-to-back, i.e. the first element is in front
      :initarg :layers
      :reader layers)))
-
-(defun make-tile-set (&key img-id tile-width tile-height)
-  (let* ((img (gamekit::resource-by-id img-id))
-         (num-rows (/ (gamekit::height-of img)
-                      tile-height))
-         (num-cols (/ (gamekit::width-of img)
-                      tile-width))
-         (tiles (make-array (* num-rows num-cols)))
-         (tile-set (make-instance 'tile-set
-                                  :id img-id
-                                  :tile-width tile-width
-                                  :tile-height tile-height
-                                  :num-rows num-rows
-                                  :num-cols num-cols
-                                  :tiles tiles)))
-    (dotimes (row num-rows tile-set)
-      (dotimes (col num-cols)
-        (let ((tile-num (+ col (* num-cols row))))
-          (setf (aref tiles tile-num)
-                (make-instance 'tile
-                               :tile-set tile-set
-                               :tile-num tile-num
-                               :llx (* col tile-width)
-                               :lly (* (- num-rows 1 row) tile-height))))))))
 
 (defmethod draw (origin (tile tile))
   (let ((tile-set (tile-set tile)))
@@ -99,15 +85,17 @@
                      :height (tile-height tile-set))))
 
 (defmethod draw (origin (tile-map tile-map))
-  (let* ((tile-set (tile-set tile-map))
-         (tiles (tiles tile-set))
-         (tile-width (tile-width tile-set))
-         (tile-height (tile-height tile-set)))
-    (dotimes (row (num-rows tile-map))
-      (dotimes (col (num-cols tile-map))
-        (let ((tile-num (aref (map-data tile-map) row col)))
-          (unless (< tile-num 0)
-            (draw (gamekit:add origin
-                               (gamekit:vec2 (* col tile-width)
-                                             (* -1 (1+ row) tile-height)))
-                  (aref tiles tile-num))))))))
+  (let ((tiles (tiles tile-map))
+        (tile-width (tile-width tile-map))
+        (tile-height (tile-height tile-map)))
+    (loop :for layer :across (layers tile-map) :do
+          (dotimes (row (num-rows layer))
+            (dotimes (col (num-cols layer))
+              (let* ((tile (aref tiles
+                                 (aref (data layer)
+                                       row col))))
+                (when tile ;tile is nil if there is no tile in the tile-layer in (row,col)
+                  (draw (gamekit:add origin
+                                     (gamekit:vec2 (* col tile-width)
+                                                   (* -1 (1+ row) tile-height)))
+                        tile))))))))

@@ -38,14 +38,12 @@
 (defmethod gamekit:initialize-resources ((app main))
   (flet ((import-image (id-symbol filename)
            (gamekit:import-image id-symbol filename)
-           (setf (gethash (namestring (truename filename))
-                          *truenames-to-resource-ids*)
-                 id-symbol))
+           (setf (gethash (namestring (truename (merge-pathnames filename *asset-dir*)))
+                          *truenames-to-resource-ids*) id-symbol))
          (import-sound (id-symbol filename)
            (gamekit:import-sound id-symbol filename)
-           (setf (gethash (namestring (truename filename))
-                          *truenames-to-resource-ids*)
-                 id-symbol)))
+           (setf (gethash (namestring (truename (merge-pathnames filename *asset-dir*)))
+                          *truenames-to-resource-ids*) id-symbol)))
     (import-image :snake-head "snake-head.png")
     (import-image :tile-set *tile-set-file*)
     (import-image :character-tile-set *character-tile-set-file*)
@@ -54,12 +52,12 @@
 
 (defun setup-things ()
   (setf *last-draw* nil)
-  (setf *default-tile-set* (make-tile-set :img-id :tile-set
+  (setf *default-tile-set* (img->tile-set :img-id :tile-set
                                           :tile-width 16
                                           :tile-height 16))
   (setf *default-tile-map* (csv->tile-map :csv-file *tile-map-file*
                                           :tile-set *default-tile-set*))
-  (setf *character-tile-set* (make-tile-set :img-id :character-tile-set
+  (setf *character-tile-set* (img->tile-set :img-id :character-tile-set
                                             :tile-width 16
                                             :tile-height 32))
   (setf *character* (make-instance 'game-character

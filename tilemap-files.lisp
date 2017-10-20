@@ -8,14 +8,37 @@
                                             (mapcar #'read-from-string
                                                     row))))
          (num-rows (length data))
-         (num-cols (length (first data))))
+         (num-cols (length (first data)))
+         (tiles (make-array (1+ (length (tiles tile-set)))
+                            :initial-element nil))
+         (data (make-array
+                 (list num-rows num-cols)
+                 :initial-contents data
+                 :element-type 'integer)))
+    ;missing tiles are indicated by a tilenum of -1 in the csv.
+    ;we therefore remap the tiles of tile-set to the indices
+    ; 1, .., (length (tiles (tile-set)))
+    ;and index 0 maps to nil.
+    (dotimes (i (length (tiles tile-set)))
+      (setf (aref tiles (1+ i))
+            (aref (tiles tile-set) i)))
+    (dotimes (row num-rows)
+      (dotimes (col num-cols)
+        (incf (aref data row col))))
     (make-instance 'tile-map
-                   :tile-set tile-set
+                   :tiles tiles
+                   :tile-width (tile-width tile-set)
+                   :tile-height (tile-height tile-set)
                    :num-rows num-rows
                    :num-cols num-cols
-                   :map-data (make-array (list num-rows num-cols)
-                                         :initial-contents data
-                                         :element-type 'integer))))
+                   :layers
+                   (make-array 1
+                               :initial-element
+                               (make-instance 'tile-map-layer
+                                              :name ""
+                                              :num-rows num-rows
+                                              :num-cols num-cols
+                                              :data data)))))
 
 (defun tmx->tile-map (&key tmx-file loaded-tile-sets loaded-images)
   "Given the filename of a .tmx file and a hash-table mapping
@@ -38,7 +61,7 @@
            ;loads it if necessary (and possible)
            (ensure-tile-set (tileset-node)
              (if (dom:has-attribute tileset-node "source")
-                 ;this tileset references a .tsx file
+                 ;this tileset-node references a .tsx file
                  (let ((tsx-file (namestring
                                    (truename
                                      (merge-pathnames (string-attribute tileset-node "source")
@@ -50,7 +73,7 @@
                                (tsx->tile-set
                                  :tsx-file tsx-file
                                  :file-to-id-dict loaded-images)))))
-                 ;this tileset references an image file
+                 ;this tileset-node references an image file
                  (let* ((img-node (first-element-with-tag-name tileset-node "image"))
                         (img-file (namestring
                                     (truename
@@ -63,37 +86,58 @@
                          (multiple-value-bind (resource-id id-exists) (gethash img-file loaded-images)
                            (assert id-exists (resource-id) "There is no resource-id associated to the file ~A." img-file)
                            (setf (gethash img-file loaded-tile-sets)
-                                 (make-tile-set :img-id resource-id
+                                 (img->tile-set :img-id resource-id
                                                 :tile-width (value-attribute img-node "tilewidth")
-                                                :tile-height (value-attribute img-node "tileheight"))))))))))
+                                                :tile-height (value-attribute img-node "tileheight")))))))))
+           (layer-node->map-layer (node)
+             (let ((num-rows (value-attribute node "height"))
+                   (num-cols (value-attribute node "width"))
+                   (data-node (first-element-with-tag-name node "data")))
+               (assert (string= (dom:get-attribute data-node "encoding")
+                                "csv"))
+               (make-instance 'tile-map-layer
+                              :name (string-attribute node "name")
+                              :num-rows num-rows
+                              :num-cols num-cols 
+                              :data (make-array (list num-rows num-cols)
+                                                :initial-contents
+                                                (cl-csv:read-csv
+                                                  (dom:data
+                                                    (dom:first-child data-node))
+                                                  :map-fn #'(lambda (row)
+                                                              (mapcar #'read-from-string row))))))))
     (let* ((document (cxml:parse-file tmx-file
                                       (cxml-dom:make-dom-builder)))
-           (tilesets-and-offsets
-             (map #'(lambda (node)
-                      (cons (value-attribute node "firstgid")
-                            (ensure-tile-set node)))
-                  (dom:get-elements-by-tag-name document "tileset")))
-           (num-tilesets (length tilesets-and-offsets))
+           (map-node (first-element-with-tag-name document "map"))
+           (tileset-nodes (dom:get-elements-by-tag-name map-node "tileset"))
+           (tilesets (map #'ensure-tile-set
+                          tileset-nodes))
+           (tilenum-offsets (map #'(lambda (node)
+                                     (value-attribute node "firstgid"))
+                                 tileset-nodes))
+           (num-tilesets (length tilesets))
            (num-tiles
              (loop :for i :below num-tilesets
-                   :sum (length (tiles (cdr (aref tilesets-and-offsets i))))))
-           (tiles (make-array num-tiles)))
-      (sort tilesets-and-offsets #'< :key #'car)
+                   :maximize (+ (aref tilenum-offsets i)
+                                (length (aref tilesets i)))))
+           (map-tiles (make-array num-tiles
+                                  ;missing tiles are indicated by nil
+                                  :initial-element nil)))
+      ;set up the tiles array of the map
       (dotimes (i num-tilesets)
-        (let ((tileset (cdr (aref tilesets-and-offsets i)))
-              (firstgid (car (aref tilesets-and-offsets i))))
-          (dotimes (tilenum (length (tiles (tileset))))
-            (setf (aref tiles
-                        (+ firstgid tilenum))
-                  (aref (tiles tileset)
+        (let ((tileset-tiles (tiles (aref tilesets i)))
+              (offset (aref tilenum-offsets i)))
+          (dotimes (tilenum (length tileset-tiles))
+            (setf (aref map-tiles
+                        (+ offset tilenum))
+                  (aref tileset-tiles
                         tilenum)))))
+      ;set up the layers of the map
       (make-instance 'tile-map
-        :tiles (
-                ;TODO
-
-                    )
-        )
-      )
-
-    )
-  )
+                     :tiles map-tiles
+                     :tile-width (value-attribute map-node "tilewidth")
+                     :tile-height (value-attribute map-node "tileheight")
+                     :num-cols (value-attribute map-node "width")
+                     :num-rows (value-attribute map-node "height")
+        :layers (map #'layer-node->map-layer
+                     (dom:get-elements-by-tag-name map-node "layer"))))))
