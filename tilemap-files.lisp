@@ -2,6 +2,19 @@
 
 ;; Stuff for loading tilemap files
 
+;removes any leading/trailing whitespace from the csv-string,
+;and removes trailing commata
+(defun sanitize-csv-string (csv-string)
+  (string-trim
+    '(#\Newline)
+    (with-input-from-string (s-in (string-trim '(#\Newline)
+                                               csv-string))
+      (with-output-to-string (s-out)
+        (loop :as line = (read-line s-in nil)
+              :while line
+              :do (write-line (cl-ppcre:regex-replace ",\\s*$" line "")
+                              s-out))))))
+
 (defun csv->tile-map (&key csv-file tile-set)
   (let* ((data (cl-csv:read-csv csv-file
                                 :map-fn #'(lambda (row)
@@ -80,46 +93,57 @@
                                       (merge-pathnames (string-attribute img-node "source")
                                                        (directory-namestring tmx-file))))))
 
-                   (multiple-value-bind (value value-exists) (gethash img-file loaded-tilesets)
+                   (multiple-value-bind (value value-exists) (gethash img-file loaded-tile-sets)
                      (if value-exists
                          value
                          (multiple-value-bind (resource-id id-exists) (gethash img-file loaded-images)
                            (assert id-exists (resource-id) "There is no resource-id associated to the file ~A." img-file)
                            (setf (gethash img-file loaded-tile-sets)
                                  (img->tile-set :img-id resource-id
-                                                :tile-width (value-attribute img-node "tilewidth")
-                                                :tile-height (value-attribute img-node "tileheight")))))))))
+                                                :tile-width (value-attribute tileset-node "tilewidth")
+                                                :tile-height (value-attribute tileset-node "tileheight")
+                                                :img-width (value-attribute img-node "width")
+                                                :img-height (value-attribute img-node "height")))))))))
            (layer-node->map-layer (node)
              (let ((num-rows (value-attribute node "height"))
                    (num-cols (value-attribute node "width"))
                    (data-node (first-element-with-tag-name node "data")))
                (assert (string= (dom:get-attribute data-node "encoding")
                                 "csv"))
-               (make-instance 'tile-map-layer
+               (let* ((csv-string (sanitize-csv-string (dom:data (dom:first-child data-node))))
+                      (data 
+                        (cl-csv:read-csv
+                          csv-string
+                          :map-fn #'(lambda (row)
+                                      (mapcar #'read-from-string
+                                              ;for some reason, csv data in <data>-nodes
+                                              ;are polluted with an extra trailing comma
+                                              ;(subseq row 0 (1- (length row)))
+                                             row
+                                             
+                                             )))))
+                 (make-instance 'tile-map-layer
                               :name (string-attribute node "name")
                               :num-rows num-rows
                               :num-cols num-cols 
                               :data (make-array (list num-rows num-cols)
-                                                :initial-contents
-                                                (cl-csv:read-csv
-                                                  (dom:data
-                                                    (dom:first-child data-node))
-                                                  :map-fn #'(lambda (row)
-                                                              (mapcar #'read-from-string row))))))))
+                                                :initial-contents data))))))
     (let* ((document (cxml:parse-file tmx-file
                                       (cxml-dom:make-dom-builder)))
            (map-node (first-element-with-tag-name document "map"))
            (tileset-nodes (dom:get-elements-by-tag-name map-node "tileset"))
-           (tilesets (map #'ensure-tile-set
+           (tilesets (map 'vector
+                          #'ensure-tile-set
                           tileset-nodes))
-           (tilenum-offsets (map #'(lambda (node)
+           (tilenum-offsets (map 'vector
+                                 #'(lambda (node)
                                      (value-attribute node "firstgid"))
                                  tileset-nodes))
            (num-tilesets (length tilesets))
            (num-tiles
              (loop :for i :below num-tilesets
                    :maximize (+ (aref tilenum-offsets i)
-                                (length (aref tilesets i)))))
+                                (length (tiles (aref tilesets i))))))
            (map-tiles (make-array num-tiles
                                   ;missing tiles are indicated by nil
                                   :initial-element nil)))
@@ -139,5 +163,6 @@
                      :tile-height (value-attribute map-node "tileheight")
                      :num-cols (value-attribute map-node "width")
                      :num-rows (value-attribute map-node "height")
-        :layers (map #'layer-node->map-layer
+        :layers (map 'vector
+                     #'layer-node->map-layer
                      (dom:get-elements-by-tag-name map-node "layer"))))))

@@ -75,7 +75,7 @@
      :initarg :layers
      :reader layers)))
 
-(defmethod draw (origin (tile tile))
+(defun draw-tile (origin tile)
   (let ((tile-set (tile-set tile)))
     (draw-image-part origin
                      (id tile-set)
@@ -84,18 +84,23 @@
                      :width (tile-width tile-set)
                      :height (tile-height tile-set))))
 
-(defmethod draw (origin (tile-map tile-map))
+(defun draw-tile-map-layer (origin &key layer tile-map)
   (let ((tiles (tiles tile-map))
         (tile-width (tile-width tile-map))
         (tile-height (tile-height tile-map)))
-    (loop :for layer :across (layers tile-map) :do
-          (dotimes (row (num-rows layer))
-            (dotimes (col (num-cols layer))
-              (let* ((tile (aref tiles
-                                 (aref (data layer)
-                                       row col))))
-                (when tile ;tile is nil if there is no tile in the tile-layer in (row,col)
-                  (draw (gamekit:add origin
-                                     (gamekit:vec2 (* col tile-width)
-                                                   (* -1 (1+ row) tile-height)))
-                        tile))))))))
+    (dotimes (row (num-rows layer))
+      (dotimes (col (num-cols layer))
+        (let* ((tile (aref tiles
+                           (aref (data layer)
+                                 row col))))
+          (when tile ;tile is nil if there is no tile in the tile-layer in (row,col)
+            (draw-tile (gamekit:add origin
+                                    (gamekit:vec2 (* col tile-width)
+                                                  (* -1 (1+ row) tile-height)))
+                       tile)))))))
+
+(defun draw-tile-map (origin tile-map)
+  (loop :for layer :across (layers tile-map) :do
+        (draw-tile-map-layer origin
+                             :layer layer
+                             :tile-map tile-map)))

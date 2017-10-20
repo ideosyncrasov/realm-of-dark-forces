@@ -1,6 +1,6 @@
 (asdf:defsystem realm-of-dark-forces
 	:name "In the Realm of Dark Forces"
-	:depends-on (trivial-gamekit cl-csv cxml)
+	:depends-on (:trivial-gamekit :cl-csv :cxml :cl-ppcre)
 	:serial t
 	:components ((:file "packages")
 		     (:file "character")

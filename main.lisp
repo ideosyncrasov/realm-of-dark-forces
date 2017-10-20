@@ -12,7 +12,8 @@
                                   (gamekit:vec2 375 300)
                                   (gamekit:vec2 425 300)
                                   (gamekit:vec2 500 300))))
-(defvar *origin* (gamekit:vec2 0 0))
+(defvar *origin* (gamekit:vec2 (* 0.5 *canvas-width*)
+                               (* 0.5 *canvas-height*)))
 (defvar *cursor-pos* (gamekit:vec2 0 0))
 (defvar *character*)
 (defvar *head-grabbed-p* nil)
@@ -22,11 +23,13 @@
 (defvar *default-tile-set*)
 (defvar *default-tile-map*)
 (defvar *character-tile-set*)
+(defvar *apartment-tile-map-file* (merge-pathnames "apartment.tmx" *asset-dir*))
+(defvar *apartment-tile-map*)
 ; *truenames-to-resource-ids* maps file names of resources their id, i.e.
 ;  s |-> x
 ; if x is the symbol a resource loaded from filename p and s = (namestring (truename p))
-(defvar *truenames-to-resource-ids* (make-hash-table))
-(defvar *truenames-to-tile-sets* (make-hash-table)); maps names of .tsx files to corresponding tile-set objects
+(defvar *truenames-to-resource-ids* (make-hash-table :test 'equal))
+(defvar *truenames-to-tile-sets* (make-hash-table :test 'equal)); maps names of .tsx files to corresponding tile-set objects
 
 (defclass main (gamekit:gamekit-system) ()
   (:default-initargs
@@ -60,8 +63,13 @@
   (setf *character-tile-set* (img->tile-set :img-id :character-tile-set
                                             :tile-width 16
                                             :tile-height 32))
+  (setf *apartment-tile-map*
+        (tmx->tile-map
+          :tmx-file *apartment-tile-map-file*
+          :loaded-tile-sets *truenames-to-tile-sets*
+          :loaded-images *truenames-to-resource-ids*))
   (setf *character* (make-instance 'game-character
-                                  :pos (gamekit:vec2 55 55)
+                                  :pos (gamekit:vec2 448 -560)
                                   :facing :up
                                   :animation-phase 0)))
 
@@ -168,12 +176,32 @@
   (let* ((cur-time (cur-time-in-secs))
          (dt (progn (when (eq *last-draw* nil)
                       (setf *last-draw* cur-time))
-                    (- cur-time *last-draw*))))
+                    (- cur-time *last-draw*)))
+         (rounded-player-pos nil))
     (setf *last-draw* cur-time)
     (update-world cur-time dt)
+    (setf rounded-player-pos
+          (gamekit:vec2 (truncate (gamekit:x (pos *character*)))
+                        (truncate (gamekit:y (pos *character*)))))
     (gamekit:print-text "A snake it is!" 300 400)
-    (draw (gamekit:vec2 -128 800)
-          *default-tile-map*)
+    (let ((tile-map *apartment-tile-map*))
+      (loop :for layer :across (layers tile-map) :do
+            (when (string= (name layer)
+                           "character")
+              (draw-tile *origin*
+                         (aref (tiles *character-tile-set*)
+                               (+ (mod (floor (animation-phase *character*))
+                                       4)
+                                  (case (facing *character*)
+                                    (:up (* 2 17))
+                                    (:down (* 0 17))
+                                    (:left (* 3 17))
+                                    (:right (* 1 17)))))))
+            (draw-tile-map-layer (gamekit:subt *origin* rounded-player-pos)
+                                 :layer layer
+                                 :tile-map tile-map)))
+    ;(draw (gamekit:vec2 -128 800)
+    ;      *default-tile-map*)
     (update-position (aref *curve* 1) cur-time)
     (update-position (aref *curve* 2) (+ 0.3 cur-time))
     (draw-image-part (gamekit:vec2 (+ 100 (* 100 (cos cur-time)))
@@ -181,15 +209,6 @@
                      :snake-head
                      :llx 10 :lly 10
                      :width 50 :height 50)
-    (draw (pos *character*)
-          (aref (tiles *character-tile-set*)
-                (+ (mod (floor (animation-phase *character*))
-                        4)
-                   (case (facing *character*)
-                     (:up (* 2 17))
-                     (:down (* 0 17))
-                     (:left (* 3 17))
-                     (:right (* 1 17))))))
     (gamekit:draw-curve (aref *curve* 0)
                         (aref *curve* 3)
                         (aref *curve* 1)
