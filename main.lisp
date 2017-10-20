@@ -22,6 +22,11 @@
 (defvar *default-tile-set*)
 (defvar *default-tile-map*)
 (defvar *character-tile-set*)
+; *truenames-to-resource-ids* maps file names of resources their id, i.e.
+;  s |-> x
+; if x is the symbol a resource loaded from filename p and s = (namestring (truename p))
+(defvar *truenames-to-resource-ids* (make-hash-table))
+(defvar *truenames-to-tile-sets* (make-hash-table)); maps names of .tsx files to corresponding tile-set objects
 
 (defclass main (gamekit:gamekit-system) ()
   (:default-initargs
@@ -31,10 +36,21 @@
     :viewport-title "In the Realm of Dark Forces"))
 
 (defmethod gamekit:initialize-resources ((app main))
-  (gamekit:import-image :snake-head "snake-head.png")
-  (gamekit:import-image :tile-set *tile-set-file*)
-  (gamekit:import-image :character-tile-set *character-tile-set-file*)
-  (gamekit:import-sound :snake-grab "snake-grab.ogg"))
+  (flet ((import-image (id-symbol filename)
+           (gamekit:import-image id-symbol filename)
+           (setf (gethash (namestring (truename filename))
+                          *truenames-to-resource-ids*)
+                 id-symbol))
+         (import-sound (id-symbol filename)
+           (gamekit:import-sound id-symbol filename)
+           (setf (gethash (namestring (truename filename))
+                          *truenames-to-resource-ids*)
+                 id-symbol)))
+    (import-image :snake-head "snake-head.png")
+    (import-image :tile-set *tile-set-file*)
+    (import-image :character-tile-set *character-tile-set-file*)
+    (import-image :tile-set-inner-zelda "Inner.png")
+    (import-sound :snake-grab "snake-grab.ogg")))
 
 (defun setup-things ()
   (setf *last-draw* nil)

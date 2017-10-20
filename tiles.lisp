@@ -40,20 +40,30 @@
      :initarg :lly
      :reader lly)))
 
+(defclass tile-map-layer ()
+  ((num-rows
+     :initarg :num-rows
+     :reader num-rows)
+   (num-cols
+     :initarg :num-cols
+     :reader num-cols)
+   (data ;two-dimensional arrays of tilenums
+     :initarg :data
+     :reader data)))
+
 (defclass tile-map ()
-  ((tile-set
-     :initarg :tile-set
-     :reader tile-set
-     :type tile-set)
+  ((tiles ;array mapping tilenums to tiles (of possibly multiple) tilesets
+     :initarg :tiles
+     :reader tiles)
    (num-rows
      :initarg :num-rows
      :reader num-rows)
    (num-cols
      :initarg :num-cols
      :reader num-cols)
-   (map-data
-     :initarg :map-data
-     :reader map-data)))
+   (layers ;array of layers, ordered from front-to-back, i.e. the first element is in front
+     :initarg :layers
+     :reader layers)))
 
 (defun make-tile-set (&key img-id tile-width tile-height)
   (let* ((img (gamekit::resource-by-id img-id))
