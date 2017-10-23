@@ -40,7 +40,6 @@
            (gamekit:import-sound id-symbol filename)
            (setf (gethash (namestring (truename (merge-pathnames filename *asset-dir*)))
                           *truenames-to-resource-ids*) id-symbol)))
-    (import-image :snake-head "snake-head.png")
     (import-image :interior-tile-set "tileset_16x16_interior.png")
     (import-image :character-tile-set *character-tile-set-file*)
     (import-image :tile-set-inner-zelda "Inner.png")
