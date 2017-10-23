@@ -75,6 +75,9 @@
      :initarg :layers
      :reader layers)))
 
+(defun layer-by-name (tile-map layer-name)
+  (find layer-name (layers tile-map) :test #'string= :key #'name))
+
 (defun draw-tile (origin tile)
   (let ((tile-set (tile-set tile)))
     (draw-image-part origin
@@ -83,6 +86,8 @@
                      :lly (lly tile)
                      :width (tile-width tile-set)
                      :height (tile-height tile-set))))
+
+(defvar *rendered-sun-light*)
 
 (defun draw-tile-map-layer (origin &key layer tile-map)
   (let ((tiles (tiles tile-map))
@@ -97,7 +102,29 @@
             (draw-tile (gamekit:add origin
                                     (gamekit:vec2 (* col tile-width)
                                                   (* -1 (1+ row) tile-height)))
-                       tile)))))))
+                       tile)
+            (when (or (string= (name layer)
+                               "windows")
+                      (and (not (aref *rendered-sun-light* row col))
+                           (or
+                             (string= (name layer)
+                                      "wall deco")
+                             (string= (name layer)
+                                      "inner walls")
+                             (string= (name layer)
+                                      "windows")
+                             (string= (name layer)
+                                      "ground & walls")
+                             (string= (name layer)
+                                      "carpet"))))
+              (gamekit:draw-rect (gamekit:add origin
+                                              (gamekit:vec2 (* col tile-width)
+                                                            (* -1 (1+ row) tile-height)))
+                                 (tile-width (tile-set tile))
+                                 (tile-height (tile-set tile))
+                                 :fill-paint (sun-light *game-state*)
+                                 )
+              (setf (aref *rendered-sun-light* row col) t))))))))
 
 (defun draw-tile-map (origin tile-map)
   (loop :for layer :across (layers tile-map) :do

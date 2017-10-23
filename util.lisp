@@ -17,3 +17,9 @@
         (gamekit::translate-canvas (- (gamekit:x origin) llx) (- (gamekit:y origin) lly))
         (gamekit:draw-rect (gamekit:vec2 llx lly) width height :fill-paint image))
       (gamekit::pop-canvas))))
+
+;Perez sky color model
+; ref: https://nicoschertler.wordpress.com/2013/04/03/simulating-a-days-sky/
+(defun sky-color (sun-elevation)
+  ;TODO
+  )

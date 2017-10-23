@@ -3,7 +3,8 @@
 (defvar *asset-dir* (merge-pathnames "assets/" (asdf:system-source-directory :realm-of-dark-forces)))
 (defvar *canvas-width* 640)
 (defvar *canvas-height* 480)
-(defvar *origin* (gamekit:vec2 (* 0.5 *canvas-width*)
+(defvar *origin* (gamekit:vec2 0 0))
+(defvar *center* (gamekit:vec2 (* 0.5 *canvas-width*)
                                (* 0.5 *canvas-height*)))
 (defvar *game-state*)
 ; *truenames-to-resource-ids* maps file names of resources their id, i.e.
@@ -13,11 +14,7 @@
 (defvar *truenames-to-tile-sets* (make-hash-table :test 'equal)); maps names of .tsx files to corresponding tile-set objects
 
 
-(defvar *tile-set-file* (merge-pathnames "tileset_16x16_interior.png" *asset-dir*))
-(defvar *tile-map-file* (merge-pathnames "map_deco0.csv" *asset-dir*))
 (defvar *character-tile-set-file* (merge-pathnames "character.png" *asset-dir*))
-(defvar *default-tile-set*)
-(defvar *default-tile-map*)
 (defvar *character-tile-set*)
 (defvar *apartment-tile-map-file* (merge-pathnames "apartment.tmx" *asset-dir*))
 (defvar *apartment-tile-map*)
@@ -44,7 +41,7 @@
            (setf (gethash (namestring (truename (merge-pathnames filename *asset-dir*)))
                           *truenames-to-resource-ids*) id-symbol)))
     (import-image :snake-head "snake-head.png")
-    (import-image :tile-set *tile-set-file*)
+    (import-image :interior-tile-set "tileset_16x16_interior.png")
     (import-image :character-tile-set *character-tile-set-file*)
     (import-image :tile-set-inner-zelda "Inner.png")
     (import-sound :alarm-sound "alarm.ogg")))
@@ -54,13 +51,8 @@
                                     :time-val (cur-time-in-secs)
                                     :player-character
                                     (make-instance 'animated-game-character
-                                                   :pos (gamekit:vec2 448 -560)
+                                                   :pos (gamekit:vec2 368 248)
                                                    :facing :up)))
-  (setf *default-tile-set* (img->tile-set :img-id :tile-set
-                                          :tile-width 16
-                                          :tile-height 16))
-  (setf *default-tile-map* (csv->tile-map :csv-file *tile-map-file*
-                                          :tile-set *default-tile-set*))
   (setf *character-tile-set* (img->tile-set :img-id :character-tile-set
                                             :tile-width 16
                                             :tile-height 32))
@@ -118,8 +110,11 @@
                        #'key-left-released))
 
 (defmethod gamekit:draw ((app main))
-  (update-world *game-state*)
-  (draw-game))
+  (let* ((cur-time (cur-time-in-secs))
+        (dt (- cur-time
+               (time-val *game-state*))))
+    (update-world *game-state* dt)
+    (draw-game)))
 
 (defun main ()
   (gamekit:start 'main))

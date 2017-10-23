@@ -31,26 +31,22 @@
 (defvar *situation-type* '(or (eql :sleeping)
                               (eql :in-bed)
                               (eql :eating)
-                              (eql :walking)))
-
-(defclass animation () ())
-(defgeneric animate (animation state))
+                              (eql :in-transition)))
 
 (defclass game-character ()
    ((situation
       :initarg :situation
       :initform :in-bed
       :type *situation-type*)
-    (active-animation
-      :initarg :active-animation
-      :initform nil
-      :accessor active-animation
-      :type '(or (eql nil)
-                 animation))
     (inner-state
      :initarg :inner-state
      :initform (make-instance 'emotional-state)
      :accessor inner-state)))
+
+(defvar *facing-type* '(or (eql :up)
+                           (eql :down)
+                           (eql :right)
+                           (eql :left)))
 
 (defclass animated-character ()
   ((pos
@@ -61,10 +57,7 @@
      :initarg :facing
      :initform :up
      :accessor facing
-     :type '(or (eql :up)
-                (eql :down)
-                (eql :left)
-                (eql :right)))
+     :type *facing-type*)
    (walking-animation-phase
      :initarg :walking-animation-phase
      :initform 0
